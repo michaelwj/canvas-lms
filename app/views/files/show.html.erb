@@ -58,7 +58,7 @@
     <% js_bundle :file %>
     <iframe
       id="file_content"
-      <% unless js_env.dig(:FEATURES, :disable_iframe_sandbox_file_show) %>
+      <% unless js_env.dig(:FEATURES, :disable_iframe_sandbox_file_show) || @attachment.content_type == 'application/pdf' %>
         sandbox="<%= @attachment.content_type == 'text/html' ? 'allow-same-origin' : 'allow-scripts allow-same-origin' %>"
       <% end %>
       src="<%= safe_domain_file_url(@attachment, fallback_url: download_url, verifier: params[:verifier]) %>"

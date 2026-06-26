@@ -109,6 +109,29 @@ describe FilePreviewsController do
     expect(response).to redirect_to @attachment.canvadoc_url
   end
 
+  it "redirects PDFs to canvadocs_url if available" do
+    allow_any_instance_of(Attachment).to receive(:canvadoc_url).and_return("http://example.com/fake_canvadoc_url")
+    attachment_model content_type: "application/pdf"
+    get :show, params: { course_id: @course.id, file_id: @attachment.id }
+    expect(response).to redirect_to @attachment.canvadoc_url
+  end
+
+  it "renders a native preview for PDFs before google docs preview" do
+    allow_any_instance_of(Attachment).to receive(:canvadoc_url).and_return(nil)
+    attachment_model content_type: "application/pdf"
+
+    expect(controller).to receive(:render_or_redirect_to_stored_file) do |attachment:, verifier:, inline:, options:|
+      expect(attachment).to eq @attachment
+      expect(verifier).to be_nil
+      expect(inline).to be true
+      expect(options).to eq({})
+      controller.head :ok
+    end
+
+    get :show, params: { course_id: @course.id, file_id: @attachment.id }
+    expect(response).to have_http_status :ok
+  end
+
   it "redirects to a google doc preview if available" do
     allow_any_instance_of(Attachment).to receive(:canvadoc_url).and_return(nil)
     attachment_model content_type: "application/msword"

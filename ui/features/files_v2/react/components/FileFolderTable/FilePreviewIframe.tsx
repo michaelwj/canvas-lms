@@ -24,6 +24,10 @@ const I18n = createI18nScope('files_v2')
 const FLAMEGRAPH_FILENAME_REGEX = /^flamegraph-.+#.+-\d{4}-\d{2}-\d{2}.+$/
 
 const sandboxSettings = (item: File) => {
+  if (item.mime_class === 'pdf' || item['content-type'] === 'application/pdf') {
+    return undefined
+  }
+
   const commonSettings = ['allow-downloads', 'allow-same-origin']
 
   if (item.mime_class !== 'html' || FLAMEGRAPH_FILENAME_REGEX.test(item.display_name)) {

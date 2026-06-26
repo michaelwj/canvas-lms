@@ -31,6 +31,7 @@ let file2: any
 let file3: any
 let file4: any
 let file5: any
+let file6: any
 let currentFolder: any
 
 describe.skip('File Preview Rendering', () => {
@@ -120,11 +121,30 @@ describe.skip('File Preview Rendering', () => {
       },
       {preflightUrl: ''},
     )
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore - Backbone File model constructor expects different args
+    file6 = new File(
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore - Backbone File model constructor expects different args
+      {
+        id: '6',
+        cid: 'c6',
+        name: 'Test File.file6',
+        'content-type': 'application/pdf',
+        mime_class: 'pdf',
+        size: 1000000,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        preview_url: 'http://example.com',
+      },
+      {preflightUrl: ''},
+    )
     filesCollection.add(file1)
     filesCollection.add(file2)
     filesCollection.add(file3)
     filesCollection.add(file4)
     filesCollection.add(file5)
+    filesCollection.add(file6)
     currentFolder = new Folder()
     currentFolder.files = filesCollection
   })
@@ -295,6 +315,21 @@ describe.skip('File Preview Rendering', () => {
       expect(iframe.getAttribute('sandbox')).not.toMatch(/allow-scripts/)
       expect(iframe.getAttribute('sandbox')).toMatch(/allow-same-origin/)
       expect(iframe.getAttribute('sandbox')).toMatch(/allow-downloads/)
+    })
+
+    test('the file preview should not include sandbox attributes for pdf files', () => {
+      render(
+        <FilePreview
+          isOpen={true}
+          query={{
+            preview: '6',
+          }}
+          currentFolder={currentFolder}
+        />,
+      )
+      const iframe = $('.ef-file-preview-frame')[0]
+      expect(iframe).toBeInTheDocument()
+      expect(iframe.getAttribute('sandbox')).toBeNull()
     })
   })
 

@@ -254,12 +254,14 @@ export default class FilePreview extends React.PureComponent {
 
   renderCanvasPlayer = item => {
     const html = item.get('content-type') === 'text/html'
+    const pdf = item.get('content-type') === 'application/pdf' || item.get('mime_class') === 'pdf'
     const iFrameClasses = classnames({
       'ef-file-preview-frame': true,
       'ef-file-preview-frame-html': html,
       'attachment-html-iframe': html,
     })
     const disableSandboxing = ENV.FEATURES?.disable_iframe_sandbox_file_show
+    const shouldSandbox = !disableSandboxing && !pdf
     const sandbox = classnames('allow-same-origin', 'allow-downloads', {
       'allow-scripts': !html || FLAMEGRAPH_FOLDER_REGEX.test(this.props.splat),
     })
@@ -274,7 +276,7 @@ export default class FilePreview extends React.PureComponent {
         aria-label={ariaLabel}
         src={item.get('preview_url')}
         className={iFrameClasses}
-        {...(disableSandboxing ? {} : {sandbox})}
+        {...(shouldSandbox ? {sandbox} : {})}
       />
     )
   }

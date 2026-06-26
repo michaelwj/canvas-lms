@@ -1494,6 +1494,16 @@ describe FilesController do
         expect(response).to redirect_to("https://s3/myfile")
       end
 
+      it "redirects for PDF files using an inline URL" do
+        s3_storage!
+        allow(HostUrl).to receive(:file_host).and_return("files.test")
+        request.host = "files.test"
+        @file.update_attribute(:content_type, "application/pdf")
+        allow_any_instance_of(FileAuthenticator).to receive(:inline_url).and_return("https://s3/myfile")
+        get "show_relative", params: { file_id: @file.id, course_id: @course.id, file_path: @file.full_display_path, inline: 1, download: 1 }
+        expect(response).to redirect_to("https://s3/myfile")
+      end
+
       it "redirects for non-html files" do
         s3_storage!
         allow(HostUrl).to receive(:file_host).and_return("files.test")

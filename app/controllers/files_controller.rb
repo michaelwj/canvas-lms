@@ -897,7 +897,7 @@ class FilesController < ApplicationController
     # download param because the download param is used all over the place to mean stuff
     # other than actually download the file. Long term we probably ought to audit the files
     # controller, make download mean download, and remove download_frd.
-    if params[:inline] && !params[:download_frd] && attachment.content_type && (attachment.content_type&.start_with?("text") || attachment.mime_class == "text" || attachment.mime_class == "html" || attachment.mime_class == "code" || attachment.mime_class == "image")
+    if params[:inline] && !params[:download_frd] && native_inline_preview?(attachment)
       send_stored_file(attachment)
     elsif attachment.inline_content? && !params[:download_frd] && !@context.is_a?(AssessmentQuestion)
       if params[:file_path] || !params[:wrap]
@@ -912,6 +912,18 @@ class FilesController < ApplicationController
     end
   end
   protected :send_attachment
+
+  def native_inline_preview?(attachment)
+    return false unless attachment.content_type
+
+    attachment.content_type.start_with?("text") ||
+      attachment.content_type == "application/pdf" ||
+      attachment.mime_class == "text" ||
+      attachment.mime_class == "html" ||
+      attachment.mime_class == "code" ||
+      attachment.mime_class == "image"
+  end
+  protected :native_inline_preview?
 
   def send_stored_file(attachment, inline: true)
     user = file_access_user

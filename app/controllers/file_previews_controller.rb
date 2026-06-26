@@ -52,6 +52,14 @@ class FilePreviewsController < ApplicationController
       # canvadocs
       if (url = @file.canvadoc_url(@current_user))
         redirect_to url
+      # native PDF
+      elsif native_pdf_preview?(@file)
+        render_or_redirect_to_stored_file(
+          attachment: @file,
+          verifier: params[:verifier],
+          inline: true,
+          options: params.permit(:location).to_h
+        )
       # google docs
       elsif GoogleDocsPreview.previewable?(@domain_root_account, @file)
         url = GoogleDocsPreview.url_for(@file)
@@ -75,5 +83,11 @@ class FilePreviewsController < ApplicationController
     else
       render "file_previews/unauthorized_preview", status: :unauthorized, layout: false
     end
+  end
+
+  private
+
+  def native_pdf_preview?(file)
+    file.content_type == "application/pdf"
   end
 end

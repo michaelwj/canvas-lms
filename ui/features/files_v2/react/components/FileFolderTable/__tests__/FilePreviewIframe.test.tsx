@@ -25,6 +25,7 @@ describe('FilePreviewIframe', () => {
   it('renders with correct sandbox attributes when mime_class is html', () => {
     const item = {
       ...file,
+      'content-type': 'text/html',
       mime_class: 'html',
       preview_url: 'https://example.com',
       display_name: 'test.html',
@@ -43,6 +44,25 @@ describe('FilePreviewIframe', () => {
   it('renders with correct sandbox attributes when mime_class is not html', () => {
     const item = {
       ...file,
+      'content-type': 'text/plain',
+      mime_class: 'text',
+      preview_url: 'https://example.com',
+      display_name: 'test.txt',
+    }
+
+    const {getByTitle} = render(<FilePreviewIframe item={item} />)
+    const iframe = getByTitle('Preview for file: test.txt')
+
+    expect(iframe).toHaveAttribute('sandbox', 'allow-downloads allow-same-origin allow-scripts')
+    expect(iframe).toHaveAttribute('src', 'https://example.com')
+    expect(iframe).not.toHaveStyle('background-color: #F2F4F4')
+    expect(iframe).toHaveStyle('height: 100%')
+    expect(iframe).toHaveStyle('width: 100%')
+  })
+
+  it('renders without sandbox attributes when mime_class is pdf', () => {
+    const item = {
+      ...file,
       mime_class: 'pdf',
       preview_url: 'https://example.com',
       display_name: 'test.pdf',
@@ -51,10 +71,7 @@ describe('FilePreviewIframe', () => {
     const {getByTitle} = render(<FilePreviewIframe item={item} />)
     const iframe = getByTitle('Preview for file: test.pdf')
 
-    expect(iframe).toHaveAttribute('sandbox', 'allow-downloads allow-same-origin allow-scripts')
+    expect(iframe).not.toHaveAttribute('sandbox')
     expect(iframe).toHaveAttribute('src', 'https://example.com')
-    expect(iframe).not.toHaveStyle('background-color: #F2F4F4')
-    expect(iframe).toHaveStyle('height: 100%')
-    expect(iframe).toHaveStyle('width: 100%')
   })
 })
