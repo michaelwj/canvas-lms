@@ -65,7 +65,7 @@ module IncomingMailProcessor
     end
 
     def delete_message(message_id)
-      @imap.store(message_id, "+FLAGS", Net::IMAP::DELETED)
+      @imap.store(message_id, "+FLAGS", [Net::IMAP::DELETED])
     end
 
     def move_message(message_id, target_folder)
