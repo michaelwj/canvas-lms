@@ -349,6 +349,13 @@ class Message < ApplicationRecord
       {
         default: subject,
         GCM: {
+          # notification block: Android renders the banner system-side (the
+          # official Instructure app uses a native service to display
+          # data-only messages; third-party clients like the OLGC app can't).
+          # data block kept for tap-routing payloads and compatibility.
+          notification: {
+            body: subject
+          },
           data: {
             alert: subject,
           }.merge(custom_data)
