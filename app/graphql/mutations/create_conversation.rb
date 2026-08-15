@@ -166,6 +166,8 @@ class Mutations::CreateConversation < Mutations::BaseMutation
     )
   rescue ConversationsHelper::CourseConcludedError
     validation_error(I18n.t("Course concluded, unable to send messages"))
+  rescue Olgc::ChaperoneMessaging::PolicyError => e
+    validation_error(e.message, attribute: "recipients")
   rescue ConversationsHelper::InvalidRecipientsError
     validation_error(I18n.t("Invalid recipients"))
   rescue ConversationsHelper::GroupConversationForDifferentiationTagsNotAllowedError

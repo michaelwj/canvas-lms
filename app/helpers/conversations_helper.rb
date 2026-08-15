@@ -53,6 +53,18 @@ module ConversationsHelper
       session:
     )
 
+    # OLGC chaperone policy: a parent replying alongside another family's
+    # student pulls the student's parent into the conversation
+    reply_chaperones = Olgc::ChaperoneMessaging.reply_chaperones(
+      sender: current_user, conversation: conversation.conversation
+    )
+    if reply_chaperones.present?
+      recipients ||= []
+      reply_chaperones.each do |extra|
+        recipients << extra unless recipients.any? { |r| r.id == extra.id }
+      end
+    end
+
     if recipients && !conversation.conversation.can_add_participants?(recipients)
       raise ConversationsHelper::Error.new(message: I18n.t("Too many participants for group conversation"), status: :bad_request, attribute: "recipients")
     end
@@ -231,6 +243,14 @@ module ConversationsHelper
     end
     @recipients = known.uniq(&:id)
     @recipients.reject! { |u| u.id == current_user.id } unless @recipients == [current_user] && recipients.one?
+    # OLGC chaperone policy: hand-picked student recipients bring a parent
+    # along; blocked pairings raise PolicyError (lib/olgc/chaperone_messaging)
+    chaperones = Olgc::ChaperoneMessaging.filter_new_recipients!(
+      sender: current_user, recipients: @recipients, raw: recipients
+    )
+    chaperones.each do |extra|
+      @recipients << extra unless @recipients.any? { |r| r.id == extra.id }
+    end
     @recipients
   end
 

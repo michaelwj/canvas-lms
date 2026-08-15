@@ -162,6 +162,10 @@ class ConversationsController < ApplicationController
   before_action :reject_student_view_student
   before_action :get_conversation, only: %i[show update destroy add_recipients remove_messages]
   before_action :infer_scope, only: %i[index show create update add_recipients add_message remove_messages]
+  # OLGC: chaperone policy blocks surface as clean 400s instead of 500s
+  # (normalize_recipients runs as a before_action for create/add_recipients)
+  rescue_from Olgc::ChaperoneMessaging::PolicyError, with: :render_chaperone_policy_error
+
   before_action :normalize_recipients, only: [:create, :add_recipients]
   before_action :infer_tags, only: [:create, :add_recipients]
   before_action :load_canvas_career, only: %i[index]
@@ -1145,6 +1149,10 @@ class ConversationsController < ApplicationController
   end
 
   private
+
+  def render_chaperone_policy_error(error)
+    render_error(error.attribute, error.message, error.status)
+  end
 
   def render_error(attribute, message, status = :bad_request)
     render json: [{
