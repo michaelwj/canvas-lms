@@ -921,7 +921,11 @@ class FilesController < ApplicationController
       attachment.mime_class == "text" ||
       attachment.mime_class == "html" ||
       attachment.mime_class == "code" ||
-      attachment.mime_class == "image"
+      attachment.mime_class == "image" ||
+      # Office/document types render natively in WebKit (QuickLook) when
+      # served inline — used by the mobile app to bypass the flaky Google
+      # Docs viewer. Only affects inline=1 requests; web preview unchanged.
+      %w[doc xls ppt].include?(attachment.mime_class)
   end
   protected :native_inline_preview?
 
