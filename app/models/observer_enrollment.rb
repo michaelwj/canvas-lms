@@ -19,6 +19,36 @@
 #
 
 class ObserverEnrollment < Enrollment
+  # OLGC: every provisioning path (SIS import, course People "Link to
+  # Students", API) creates linked observer enrollments WITHOUT the
+  # user-level UserObservationLink that the observees API (and the mobile
+  # app) reads. Create it at the source so no path can leave the two layers
+  # out of sync. Idempotent: skips when an active link already exists,
+  # which also terminates the recursion with the link's own
+  # create_linked_enrollments callback.
+  after_commit :olgc_ensure_user_observation_link, on: %i[create update]
+
+  def olgc_ensure_user_observation_link
+    return unless associated_user_id
+    return if workflow_state == "deleted"
+    return unless root_account
+
+    existing = UserObservationLink.where(observer_id: user_id, user_id: associated_user_id)
+                                  .for_root_accounts(root_account)
+                                  .where.not(workflow_state: "deleted")
+                                  .exists?
+    return if existing
+
+    UserObservationLink.create_or_restore(
+      student: associated_user,
+      observer: user,
+      root_account: root_account
+    )
+  rescue => e
+    # provisioning must never fail because of the convenience link
+    Rails.logger.error("[olgc] observation link auto-create failed for enrollment #{id}: #{e.message}")
+  end
+
   def observer?
     true
   end
