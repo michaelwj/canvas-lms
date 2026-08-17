@@ -292,22 +292,13 @@ class ConversationMessage < ApplicationRecord
 
   attr_accessor :cc_author
 
-  def author_short_name_with_shared_contexts(recipient)
-    if conversation.context
-      context_names = [conversation.context.name]
-    else
-      shared_tags = author.conversation_context_codes(include_concluded_codes: false)
-      shared_tags &= recipient.conversation_context_codes(include_concluded_codes: false)
-      shared_tags &= conversation.tags if conversation.tags.any?
-
-      context_components = shared_tags.map { |t| ActiveRecord::Base.parse_asset_string(t) }
-      context_names = Context.names_by_context_types_and_ids(context_components[0, 2]).values
-    end
-    if context_names.empty?
-      author.short_name
-    else
-      "#{author.short_name} (#{context_names.to_sentence})"
-    end
+  # OLGC: upstream appends whichever courses the sender and recipient happen
+  # to share — "Jane (Grammar II and Physical Science) just sent you a
+  # message" — which reads as arbitrary, because a direct message isn't
+  # "from" those courses. Notification subjects (email, SMS, summary, and
+  # push, which all render through this) now carry the sender's name only.
+  def author_short_name_with_shared_contexts(_recipient)
+    author.short_name
   end
 
   def formatted_body(truncate = nil)
