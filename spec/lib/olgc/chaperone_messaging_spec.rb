@@ -48,6 +48,16 @@ describe Olgc::ChaperoneMessaging do
       expect(extras.map(&:id)).to eq [@parent.id]
     end
 
+    it "still treats a child who also observes a sibling as a student" do
+      # community board: the student has a linked parent AND observes a sibling
+      sibling = user_with_pseudonym(active_all: true)
+      @course.enroll_student(sibling, enrollment_state: "active")
+      UserObservationLink.create_or_restore(student: sibling, observer: @student,
+                                            root_account: @course.root_account)
+      extras = filter(@teacher, [@student])
+      expect(extras.map(&:id)).to eq [@parent.id]
+    end
+
     it "blocks teacher -> student with no linked parent" do
       expect { filter(@teacher, [@unlinked_student]) }
         .to raise_error(described_class::PolicyError, /no linked parent/)
@@ -156,6 +166,23 @@ describe Olgc::ChaperoneMessaging do
       expect(described_class.reply_chaperones(
                sender: @parent, conversation: own.conversation
              )).to eq []
+    end
+
+    it "pulls in the parent of a child who also observes a sibling" do
+      # the reported community-board case: student (also an observer of a
+      # sibling) started the thread; when the other parent replies, the
+      # student's own parent must still be added
+      sibling = user_with_pseudonym(active_all: true)
+      @course.enroll_student(sibling, enrollment_state: "active")
+      UserObservationLink.create_or_restore(student: sibling, observer: @student,
+                                            root_account: @course.root_account)
+
+      conversation = @student.initiate_conversation([@other_parent])
+      conversation.add_message("hi")
+      extras = described_class.reply_chaperones(
+        sender: @other_parent, conversation: conversation.conversation
+      )
+      expect(extras.map(&:id)).to eq [@parent.id]
     end
 
     it "blocks the reply when the student has no linked parent" do

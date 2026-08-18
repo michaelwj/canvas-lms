@@ -12,8 +12,10 @@
 # - whole-course/section/group sends are exempt (only explicitly-picked
 #   numeric recipients are evaluated); account admins are exempt
 #
-# Role resolution is exact: parent = any active UserObservationLink as
-# observer (community-board StudentEnrollments don't make parents students).
+# Role resolution handles the community board, where everyone is enrolled as
+# a student: a child is anyone a parent observes (has a linked parent), even
+# if they also observe a sibling; a parent enrolled as a student is not a
+# child because no one observes them.
 #
 # Kill switch: Setting "olgc_chaperone_messaging" (default OFF). Remember
 # Settings are cached per-process — restart web/jobs after changing.
@@ -123,10 +125,18 @@ module Olgc
         user.enrollments.active.where(type: %w[TeacherEnrollment TaEnrollment]).exists?
       end
 
+      # A child needing a chaperone. The community board enrolls everyone as a
+      # student and some children also observe a sibling, so neither
+      # "has a StudentEnrollment" nor "isn't an observer" is decisive alone:
+      # - a linked parent (someone observes them) means definitely a child,
+      #   even if they also observe a sibling;
+      # - otherwise, a student enrollment counts only if they don't themselves
+      #   observe anyone (that would make them a board parent, not a child).
       def student?(user)
-        return false if parent?(user)
+        return false unless user.enrollments.active.where(type: "StudentEnrollment").exists?
+        return true if user.linked_observers.exists?
 
-        user.enrollments.active.where(type: "StudentEnrollment").exists?
+        !parent?(user)
       end
 
       def parents_of(student)
