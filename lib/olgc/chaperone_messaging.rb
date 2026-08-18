@@ -20,7 +20,8 @@
 #
 # Touchpoints (all funnel through ConversationsHelper):
 #   normalize_recipients  -> filter_new_recipients!  (create/add via both
-#                            REST and GraphQL)
+#                            REST and GraphQL; skipped on replies via
+#                            is_reply, which reply_chaperones handles instead)
 #   process_response      -> reply_chaperones        (plain replies)
 module Olgc
   module ChaperoneMessaging
@@ -45,9 +46,12 @@ module Olgc
       # `raw` is the original recipient strings (numeric ids = hand-picked;
       # course_/group_ codes = exempt broadcast). Returns extra users to
       # append; raises PolicyError for blocked sends.
-      def filter_new_recipients!(sender:, recipients:, raw:)
+      def filter_new_recipients!(sender:, recipients:, raw:, is_reply: false)
         return [] unless enabled? && sender && recipients.present?
         return [] if exempt?(sender)
+        # replies are handled by reply_chaperones, never the initiation rules:
+        # a parent must always be able to reply to a student who wrote first
+        return [] if is_reply
 
         explicit_ids = Array(raw).filter_map { |r| Integer(r.to_s, exception: false) }.to_set
         return [] if explicit_ids.none?

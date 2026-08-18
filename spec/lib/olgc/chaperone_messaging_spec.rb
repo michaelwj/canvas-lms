@@ -104,6 +104,23 @@ describe Olgc::ChaperoneMessaging do
       Setting.set(described_class::SETTING_NAME, "false")
       expect(filter(@teacher, [@student])).to eq []
     end
+
+    it "never blocks on the reply path (is_reply: true)" do
+      # a parent replying to a student who wrote first must go through, even
+      # though initiating to that student would be blocked
+      expect do
+        described_class.filter_new_recipients!(
+          sender: @other_parent, recipients: [@student],
+          raw: [@student.id.to_s], is_reply: true
+        )
+      end.not_to raise_error
+      expect(
+        described_class.filter_new_recipients!(
+          sender: @other_parent, recipients: [@student],
+          raw: [@student.id.to_s], is_reply: true
+        )
+      ).to eq []
+    end
   end
 
   describe "reply_chaperones" do

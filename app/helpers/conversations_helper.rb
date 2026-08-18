@@ -50,7 +50,11 @@ module ConversationsHelper
       context_code:,
       conversation_id: conversation.conversation_id,
       current_user:,
-      session:
+      session:,
+      # replies are governed by reply_chaperones below, NOT the initiation
+      # rules — a parent must always be able to reply to a student who
+      # messaged them (docs/10 "you can reply if they message you first")
+      is_reply: true
     )
 
     # OLGC chaperone policy: a parent replying alongside another family's
@@ -188,7 +192,7 @@ module ConversationsHelper
     result
   end
 
-  def normalize_recipients(recipients: nil, context_code: nil, conversation_id: nil, current_user: @current_user, session: nil, group_conversation: false, bulk_message: false)
+  def normalize_recipients(recipients: nil, context_code: nil, conversation_id: nil, current_user: @current_user, session: nil, group_conversation: false, bulk_message: false, is_reply: false)
     if defined?(params)
       recipients ||= params[:recipients]
       context_code ||= params[:context_code]
@@ -246,7 +250,7 @@ module ConversationsHelper
     # OLGC chaperone policy: hand-picked student recipients bring a parent
     # along; blocked pairings raise PolicyError (lib/olgc/chaperone_messaging)
     chaperones = Olgc::ChaperoneMessaging.filter_new_recipients!(
-      sender: current_user, recipients: @recipients, raw: recipients
+      sender: current_user, recipients: @recipients, raw: recipients, is_reply:
     )
     chaperones.each do |extra|
       @recipients << extra unless @recipients.any? { |r| r.id == extra.id }
