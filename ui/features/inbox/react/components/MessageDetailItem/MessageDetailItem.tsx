@@ -176,7 +176,16 @@ export const MessageDetailItem = ({
               {conversationMessage.attachments.map(attachment => {
                 return (
                   <List.Item as="div" key={attachment.id}>
-                    <Link href={attachment.url} renderIcon={<IconPaperclipLine size="x-small" />}>
+                    {/* OLGC: GraphQL builds attachment urls with download_frd=1
+                        (forced download). Swapping it for inline=1 lets
+                        files_controller's native_inline_preview? allowlist
+                        (pdf, image, text) render in the new tab; other types
+                        still download. No Canvadocs on self-hosted. */}
+                    <Link
+                      href={attachment.url?.replace('download_frd=1', 'inline=1')}
+                      target="_blank"
+                      renderIcon={<IconPaperclipLine size="x-small" />}
+                    >
                       {attachment.displayName}
                     </Link>
                   </List.Item>

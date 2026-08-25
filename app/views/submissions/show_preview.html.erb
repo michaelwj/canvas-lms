@@ -240,13 +240,20 @@
           <tr class="file-upload-submission">
             <td class="file-upload-submission-info">
               <%
+                # OLGC: inline: 1 keeps Submissions::DownloadsBaseController
+                # from forcing download_frd, so browser-renderable types (the
+                # files_controller native_inline_preview? allowlist: pdf,
+                # image, text) open in the new tab; other types download as
+                # before. No Canvadocs on self-hosted, so this is the only
+                # in-browser preview parents/students get.
                 preview_url = if anonymize_students
                   context_url(
                     @context,
                     :context_assignment_anonymous_submission_url,
                     @assignment.id,
                     @submission.anonymous_id,
-                    download: attachment.id
+                    download: attachment.id,
+                    inline: 1
                   )
                 else
                   context_url(
@@ -254,11 +261,12 @@
                     :context_assignment_submission_url,
                     @assignment.id,
                     @submission.user_id,
-                    download: attachment.id
+                    download: attachment.id,
+                    inline: 1
                   )
                 end
               %>
-              <a href="<%= preview_url %>" class="<%= attachment.mime_class %> file-upload-submission-info__link">
+              <a href="<%= preview_url %>" target="_blank" rel="noopener" class="<%= attachment.mime_class %> file-upload-submission-info__link">
                 <%= attachment.display_name %>
               </a>
               <span class="file-upload-submission-info__filesize"><%= number_to_human_size(attachment.size) %></span>

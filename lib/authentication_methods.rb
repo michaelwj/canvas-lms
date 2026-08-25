@@ -296,7 +296,11 @@ module AuthenticationMethods
       end
     end
 
-    as_user_id = api_request? && params[:as_user_id].presence
+    # OLGC: the mobile app mints web sessions via /login/session_token while
+    # acting-as; honor as_user_id there too (can_masquerade? still gates it
+    # below) so the token carries current_user_id and the web session starts
+    # masqueraded instead of as the admin.
+    as_user_id = (api_request? || request.path == "/login/session_token") && params[:as_user_id].presence
     as_user_id ||= session[:become_user_id]
     if as_user_id
       begin
