@@ -200,7 +200,12 @@ module Api::V1::Attachment
     if includes.include? "context_asset_string"
       hash["context_asset_string"] = attachment.context.try(:asset_string)
     end
-    if includes.include?("avatar") && respond_to?(:avatar_json)
+    # OLGC: files_controller#api_create appends the avatar include for
+    # profile-picture uploads, but the create_success confirm can arrive
+    # anonymously (uuid-authorized redirect after a local-storage upload —
+    # mobile clients follow it without auth). construct_token then dies on
+    # user.id for nil. No user, no token to build — skip the avatar block.
+    if includes.include?("avatar") && respond_to?(:avatar_json) && user
       hash["avatar"] = avatar_json(user, attachment, type: "attachment")
     end
     if includes.include? "instfs_uuid"
