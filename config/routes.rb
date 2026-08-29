@@ -1223,6 +1223,9 @@ CanvasRails::Application.routes.draw do
   # the way ApiRouteSet works. For now we get around it by defining methods
   # inline in the routes file, but getting concerns working would rawk.
   ApiRouteSet::V1.draw(self) do
+    # OLGC fork: community role labels (see OlgcRolesController)
+    get "courses/:course_id/olgc_roles", controller: :olgc_roles, action: :show, as: "course_olgc_roles"
+
     scope(controller: :courses) do
       get "courses", action: :index, as: "courses"
       put "courses/:id", action: :update
