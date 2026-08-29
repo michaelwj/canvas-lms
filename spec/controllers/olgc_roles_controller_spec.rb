@@ -52,17 +52,33 @@ describe OlgcRolesController do
     expect(response.parsed_body).to eq({})
   end
 
-  it "prefers institutional account-level tags when present" do
+  it "prefers institutional account-level tags, merging every OLGC-prefixed category" do
     Account.default.enable_feature!(:institutional_tags)
     cat = InstitutionalTagCategory.create!(
       account: Account.default, name: OlgcRolesController::ROLES_CATEGORY
     )
-    itag = InstitutionalTag.create!(category: cat, name: "Teacher", description: "Faculty")
-    InstitutionalTagAssociation.create!(institutional_tag: itag, context: @outsider)
+    sg = InstitutionalTagCategory.create!(
+      account: Account.default, name: "OLGC Student Government"
+    )
+    hidden = InstitutionalTagCategory.create!(
+      account: Account.default, name: "Internal Bookkeeping"
+    )
+    InstitutionalTagAssociation.create!(
+      institutional_tag: InstitutionalTag.create!(category: cat, name: "Teacher", description: "x"),
+      context: @outsider
+    )
+    InstitutionalTagAssociation.create!(
+      institutional_tag: InstitutionalTag.create!(category: sg, name: "Treasurer", description: "x"),
+      context: @outsider
+    )
+    InstitutionalTagAssociation.create!(
+      institutional_tag: InstitutionalTag.create!(category: hidden, name: "Secret", description: "x"),
+      context: @outsider
+    )
 
     user_session(@viewer)
     get :show, params: { course_id: @course.id }, format: :json
-    expect(response.parsed_body).to eq({ @outsider.id.to_s => ["Teacher"] })
+    expect(response.parsed_body).to eq({ @outsider.id.to_s => %w[Teacher Treasurer] })
   end
 
   it "ignores deleted tag memberships" do

@@ -15,6 +15,10 @@
 class OlgcRolesController < ApplicationController
   before_action :require_user
 
+  # every tag category whose name starts with this prefix is published to
+  # the app ("OLGC Roles", "OLGC Student Government", ...); categories
+  # without the prefix stay admin-private
+  CATEGORY_PREFIX = "OLGC"
   ROLES_CATEGORY = "OLGC Roles"
   SETTING = "olgc_roles_course_id"
 
@@ -39,8 +43,10 @@ class OlgcRolesController < ApplicationController
   def self.institutional_roles_map
     return {} unless Account.default.feature_enabled?(:institutional_tags)
 
-    category = InstitutionalTagCategory.active.find_by(account: Account.default, name: ROLES_CATEGORY)
-    return {} unless category
+    categories = InstitutionalTagCategory.active
+                                         .where(account: Account.default)
+                                         .where("name LIKE ?", "#{CATEGORY_PREFIX}%")
+    return {} unless categories.exists?
 
     # plain hash only — Rails.cache Marshal-dumps this, and a default proc
     # makes that raise ("can't dump hash with default proc")
@@ -48,11 +54,11 @@ class OlgcRolesController < ApplicationController
     InstitutionalTagAssociation.active
                                .joins(:institutional_tag)
                                .merge(InstitutionalTag.active)
-                               .where(institutional_tags: { category_id: category.id })
+                               .where(institutional_tags: { category_id: categories.select(:id) })
                                .where.not(user_id: nil)
                                .pluck(:user_id, :"institutional_tags.name")
                                .each { |user_id, name| (map[user_id.to_s] ||= []) << name }
-    map.transform_values(&:sort)
+    map.transform_values { |names| names.uniq.sort }
   end
 
   def self.course_tag_roles_map
@@ -62,7 +68,7 @@ class OlgcRolesController < ApplicationController
     source = Course.active.find_by(id: source_id)
     return {} unless source
 
-    categories = source.all_differentiation_tag_categories.where(name: ROLES_CATEGORY)
+    categories = source.all_differentiation_tag_categories.where("name LIKE ?", "#{CATEGORY_PREFIX}%")
     tags = Group.active.non_collaborative.where(group_category_id: categories.select(:id))
     map = {}
     GroupMembership.where(group_id: tags.select(:id))
