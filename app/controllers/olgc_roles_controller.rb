@@ -42,16 +42,17 @@ class OlgcRolesController < ApplicationController
     category = InstitutionalTagCategory.active.find_by(account: Account.default, name: ROLES_CATEGORY)
     return {} unless category
 
-    map = Hash.new { |h, k| h[k] = [] }
+    # plain hash only — Rails.cache Marshal-dumps this, and a default proc
+    # makes that raise ("can't dump hash with default proc")
+    map = {}
     InstitutionalTagAssociation.active
                                .joins(:institutional_tag)
                                .merge(InstitutionalTag.active)
                                .where(institutional_tags: { category_id: category.id })
                                .where.not(user_id: nil)
                                .pluck(:user_id, :"institutional_tags.name")
-                               .each { |user_id, name| map[user_id.to_s] << name }
-    map.each_value(&:sort!)
-    map
+                               .each { |user_id, name| (map[user_id.to_s] ||= []) << name }
+    map.transform_values(&:sort)
   end
 
   def self.course_tag_roles_map
@@ -63,13 +64,12 @@ class OlgcRolesController < ApplicationController
 
     categories = source.all_differentiation_tag_categories.where(name: ROLES_CATEGORY)
     tags = Group.active.non_collaborative.where(group_category_id: categories.select(:id))
-    map = Hash.new { |h, k| h[k] = [] }
+    map = {}
     GroupMembership.where(group_id: tags.select(:id))
                    .where.not(workflow_state: "deleted")
                    .joins(:group)
                    .pluck(:user_id, "groups.name")
-                   .each { |user_id, name| map[user_id.to_s] << name }
-    map.each_value(&:sort!)
-    map
+                   .each { |user_id, name| (map[user_id.to_s] ||= []) << name }
+    map.transform_values(&:sort)
   end
 end
