@@ -246,6 +246,12 @@ class SubmissionsController < SubmissionsBaseController
     submit_at = params.dig(:submission, :submitted_at)
     user_sub = @assignment.submissions.find_by(user: user_id)
 
+    # OLGC: a linked parent submitting for their child rides the proxy path
+    # (lib/olgc/parent_proxy) instead of requiring grading rights. Not
+    # combinable with submitted_at overrides — that stays grader-only.
+    olgc_parent_proxy = user_id.present? && submit_at.blank? &&
+                        Olgc::ParentProxy.allowed?(observer: @current_user, student: @submission_user)
+
     if user_id || submit_at
       unless user_sub
         if @assignment.students_with_visibility.where(id: user_id).exists?
@@ -255,7 +261,9 @@ class SubmissionsController < SubmissionsBaseController
         end
       end
 
-      return unless authorized_action(user_sub, @current_user, :grade)
+      unless olgc_parent_proxy
+        return unless authorized_action(user_sub, @current_user, :grade)
+      end
     end
 
     if @assignment.locked_for?(@submission_user) && !@assignment.grants_right?(@current_user, :update)
@@ -323,7 +331,15 @@ class SubmissionsController < SubmissionsBaseController
     end
 
     begin
-      @submission = @assignment.submit_homework(@submission_user, submission_params)
+      # OLGC: proxy submissions stamp the parent as proxy_submitter while the
+      # submission itself belongs to the student
+      @submission = if olgc_parent_proxy
+                      @assignment.submit_homework(
+                        @current_user, submission_params.merge(proxied_student: @submission_user)
+                      )
+                    else
+                      @assignment.submit_homework(@submission_user, submission_params)
+                    end
     rescue ActiveRecord::RecordInvalid => e
       respond_to do |format|
         format.html do

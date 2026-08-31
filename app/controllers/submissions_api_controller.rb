@@ -706,7 +706,13 @@ class SubmissionsApiController < ApplicationController
     # teachers can upload on behalf of students for a submission. eventually,
     # you'll also be able to use this api for uploading an attachment to
     # a submission comment.
-    permission = :grade if @user != @current_user
+    # OLGC: linked parents may also stage uploads for their own child, so
+    # long as the child could submit (lib/olgc/parent_proxy)
+    olgc_parent_proxy = @user != @current_user &&
+                        Olgc::ParentProxy.allowed?(observer: @current_user, student: @user) &&
+                        @assignment.grants_right?(@user, :submit)
+    permission = :grade if @user != @current_user && !olgc_parent_proxy
+    permission = :read if olgc_parent_proxy
     if authorized_action(@assignment, @current_user, permission)
       api_attachment_preflight(
         @user,
