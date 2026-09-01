@@ -33,7 +33,15 @@ module ConversationsHelper
     media_comment_type:,
     automated: false
   )
-    if conversation.conversation.replies_locked_for?(current_user, recipients)
+    # OLGC: replies_locked_for?'s second argument feeds its "a teacher is in
+    # this thread, so allow the reply" escape hatch. A plain reply carries no
+    # `recipients` param, so upstream evaluates that hatch against an EMPTY
+    # list — it can never fire exactly when it matters, and anyone without
+    # :send_messages in the course (observers, by default) gets a 403 replying
+    # to a thread a teacher started. Fall back to the conversation's real
+    # participants when no recipients were supplied.
+    lock_audience = recipients.presence || conversation.conversation.conversation_participants.map(&:user_id)
+    if conversation.conversation.replies_locked_for?(current_user, lock_audience)
       raise ConversationsHelper::RepliesLockedForUser.new(message: I18n.t("Unauthorized, unable to add messages to conversation"), status: :unauthorized, attribute: "workflow_state")
     end
 
