@@ -1225,6 +1225,10 @@ CanvasRails::Application.routes.draw do
   ApiRouteSet::V1.draw(self) do
     # OLGC fork: community role labels (see OlgcRolesController)
     get "courses/:course_id/olgc_roles", controller: :olgc_roles, action: :show, as: "course_olgc_roles"
+    # OLGC fork: volunteer-course enrollment tooling (see OlgcVolunteersController)
+    get "olgc_volunteer_course", controller: :olgc_volunteers, action: :course, as: "olgc_volunteer_course"
+    get "courses/:course_id/olgc_volunteer_candidates", controller: :olgc_volunteers, action: :candidates, as: "course_olgc_volunteer_candidates"
+    post "courses/:course_id/olgc_volunteer_enrollments", controller: :olgc_volunteers, action: :enroll, as: "course_olgc_volunteer_enrollments"
 
     scope(controller: :courses) do
       get "courses", action: :index, as: "courses"
