@@ -2280,7 +2280,11 @@ class UsersController < ApplicationController
     user_params.delete("birthdate")
 
     if @domain_root_account.enable_profiles?
-      managed_attributes << :bio if @user.grants_right?(@current_user, :manage_user_details)
+      # OLGC: let users edit their own bio via the API when the account allows
+      # it, mirroring ProfileController#update_profile (used by the web UI).
+      # The mobile app has no web session, so it needs the API path.
+      can_edit_own_bio = @user == @current_user && @user.details_editable_by_user[:can_edit_bio]
+      managed_attributes << :bio if @user.grants_right?(@current_user, :manage_user_details) || can_edit_own_bio
       managed_attributes << :title if @user.grants_right?(@current_user, :rename)
       managed_attributes << :pronunciation if @user.can_change_pronunciation?(@domain_root_account) && @user.grants_right?(@current_user, :manage_user_details)
     end
