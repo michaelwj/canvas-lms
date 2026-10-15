@@ -90,6 +90,9 @@
 class PlannerOverridesController < ApplicationController
   include Api::V1::PlannerOverride
 
+  # OLGC fork patch: see olgc_resolve_target_user below.
+  before_action :olgc_resolve_target_user, only: %i[create update]
+
   # @API List planner overrides
   #
   # Retrieve a planner override for the current user
@@ -122,14 +125,16 @@ class PlannerOverridesController < ApplicationController
   #
   # @returns PlannerOverride
   def update
-    planner_override = PlannerOverride.for_user(@current_user).find(params[:id])
+    planner_override = PlannerOverride.for_user(@target_user).find(params[:id])
+    return unless olgc_authorized_for?(planner_override.plannable)
+
     planner_override.marked_complete = value_to_boolean(params[:marked_complete])
     planner_override.dismissed = value_to_boolean(params[:dismissed])
-    sync_module_requirement_done(planner_override.plannable, @current_user, value_to_boolean(params[:marked_complete]))
+    sync_module_requirement_done(planner_override.plannable, @target_user, value_to_boolean(params[:marked_complete]))
 
     if planner_override.save
-      Rails.cache.delete(planner_meta_cache_key)
-      render json: planner_override_json(planner_override, @current_user, session), status: :ok
+      olgc_clear_planner_caches
+      render json: planner_override_json(planner_override, @target_user, session), status: :ok
     else
       render json: planner_override.errors, status: :bad_request
     end
@@ -156,17 +161,19 @@ class PlannerOverridesController < ApplicationController
   def create
     plannable_type = PlannerHelper::PLANNABLE_TYPES[params[:plannable_type]]
     plannable = plannable_type.constantize.find(params[:plannable_id])
+    return unless olgc_authorized_for?(plannable)
+
     planner_override = PlannerOverride.new(plannable:,
                                            marked_complete: value_to_boolean(params[:marked_complete]),
-                                           user: @current_user,
+                                           user: @target_user,
                                            dismissed: value_to_boolean(params[:dismissed]))
     planner_override.plannable_type = plannable.type if plannable.is_a?(SubAssignment) || plannable.is_a?(PeerReviewSubAssignment)
-    sync_module_requirement_done(plannable, @current_user, value_to_boolean(params[:marked_complete]))
+    sync_module_requirement_done(plannable, @target_user, value_to_boolean(params[:marked_complete]))
 
     begin
       if planner_override.save
-        Rails.cache.delete(planner_meta_cache_key)
-        render json: planner_override_json(planner_override, @current_user, session), status: :created
+        olgc_clear_planner_caches
+        render json: planner_override_json(planner_override, @target_user, session), status: :created
       else
         render json: planner_override.errors, status: :bad_request
       end
@@ -196,4 +203,37 @@ class PlannerOverridesController < ApplicationController
       render json: planner_override.errors, status: :bad_request
     end
   end
+
+  private
+
+  # OLGC fork patch: a parent may tick a child's To Do item done — on-paper
+  # work when the student has no device of their own. With observed_user_id
+  # the override is written AS THE CHILD, so the child's own planner, the
+  # web To Do list and every observer agree (a per-parent override would
+  # not, and could not tell siblings in one course apart). Allowed only
+  # while the parent actively observes that child in the item's course.
+  # Without the param everything behaves exactly as stock.
+  def olgc_resolve_target_user
+    @target_user = params[:observed_user_id].present? ? api_find(User, params[:observed_user_id]) : @current_user
+  end
+
+  def olgc_authorized_for?(plannable)
+    return true if @target_user == @current_user
+
+    course_id = plannable.try(:context_id) if plannable.try(:context_type) == "Course"
+    observing = course_id &&
+                @current_user.observer_enrollments.active
+                             .where(associated_user_id: @target_user, course_id:)
+                             .shard(@current_user).exists?
+    return true if observing
+
+    render_unauthorized_action
+    false
+  end
+
+  def olgc_clear_planner_caches
+    Rails.cache.delete(planner_meta_cache_key(@target_user))
+    Rails.cache.delete(planner_meta_cache_key) if @target_user != @current_user
+  end
+
 end
